@@ -11,7 +11,7 @@ var request	= require('request')
 var loggedIn = false;
 
 function getCommentUrl(pid){//parent id
-	pid = pid || config.postId;
+    pid = typeof pid !== 'undefined' ? pid : config.postId;
 	return "http://reddit.com/r/" + config.subredditName + "/comments/" + config.postId + "/db.json";
 }
 
@@ -28,20 +28,20 @@ function login (callback) {
 			console.log('Login error:');
 			console.log(err);
 			return;
-		} else {
-			var parsedBody = JSON.parse(body);
-			modhash = parsedBody.json.data.modhash;
-			cookie	= parsedBody.json.data.cookie;
-			console.log("Successfully logged in.");
-			loggedIn = true;
-			return callback();
-		}
+        }
+
+		var parsedBody = JSON.parse(body);
+		modhash = parsedBody.json.data.modhash;
+		cookie	= parsedBody.json.data.cookie;
+		console.log("Successfully logged in.");
+		loggedIn = true;
+		return callback();
 	});
 }
 
 function postComment (parentId, message, callback) {
 
-	callback = callback || function(){};
+    callback = typeof callback !== 'undefined' ? callback : function () {};
 
 	if(!loggedIn){//log in and try again
 		return login(function(){
@@ -67,9 +67,9 @@ function postComment (parentId, message, callback) {
 			console.log('Error while posting comment above.');
 			callback(false);
 			return;
-		} else {
-			callback(true);
-		}
+        }
+
+		callback(true);
 	});
 }
 
@@ -87,20 +87,20 @@ function insert(message, callback, parentId){//callback takes one arg, returns t
 	var orig = JSON.stringify(message);
 	message = utils.encrypt(JSON.stringify(message));
 
-	parentId =  parentId || config.parentName;
+	parentId =  typeof parentId !== 'undefined' ? parentId : config.parentName;
 
-	callback = callback || function(){
+	callback = typeof callback !== 'undefined' ? callback : function(){
 		console.log("Message " + orig + " posted and encrypted successfully");
 	}
 	postComment(parentId, message, callback);
 }
 
 function find(query, callback, parentId){//find all stuff - callback takes one arg, an array of all the comments
-		parentId = parentId || config.parentName;//set it to the default test thing if it doesn't work out
-		callback = callback || function(ret){
+		parentId = typeof parentId !== 'undefined' ? parentId : config.parentName;//set it to the default test thing if it doesn't work out
+		callback = typeof callback !== 'undefined' ? callback : function(ret){
 			console.log(ret);
 		};
-		query = query || {};
+		query = typeof query !== 'undefined' ? query : {};
 
 		if(!loggedIn){//log in and try again
 			return login(function(){
@@ -124,41 +124,42 @@ function find(query, callback, parentId){//find all stuff - callback takes one a
 			console.log('Error while finding comment above.');
 			callback(false);
 			return;
-		} else {//we're going to add all of the stuff into an array
-			try{
-				body = JSON.parse(body);//have to jsonify it to access it
-			} catch(e){
-				// console.log(e);
-				console.log("Reddit had trouble with the API call...");
-				// console.log(body);
-			}
-			// console.log(getCommentUrl())
-			var ret  = [];
-
-			if(body[1] && body[1].data && body[1].data.children){//if the comments, etc. are defined
-
-				bigCommentArrayThing = body[1].data.children;//comments - body[0] is post
-				for(var i = 0; i < bigCommentArrayThing.length; i++)
-					try{
-						var decrypted = JSON.parse(utils.decrypt(bigCommentArrayThing[i].data.body));//set decrypted to a parsed json from the encrypted string
-						JSON.parse(JSON.stringify(decrypted));//it'll throw an error if it's not a real JSON
-						decrypted._id = bigCommentArrayThing[i].data.id;
-						// var thing = JSON.parse(bigCommentArrayThing[i].data.body);//no idea why we haad to do this but it didn't work otherwise
-						// thing._id = bigCommentArrayThing[i].data.id;
-						if(!utils.compare(decrypted, query)){//if the thing popped off doesn't match the query...
-							continue;//keep going & don't add to array
-						}
-						// var arrAdd = bigCommentArrayThing[i].data.body;
-						// arrAdd["id"] = bigCommentArrayThing[i].data.id;//mongo-esque id maps
-						// console.log(arrAdd);
-						// console.log(bigCommentArrayThing[i].data.id);
-						ret.push(decrypted);
-					} catch (e){}
-			}
-
-
-			callback(ret);
+        }
+        //we're going to add all of the stuff into an array
+		try{
+			body = JSON.parse(body);//have to jsonify it to access it
+		} catch(e){
+			// console.log(e);
+			console.log("Reddit had trouble with the API call...");
+			// console.log(body);
+            return;
 		}
+		// console.log(getCommentUrl())
+		var ret  = [];
+
+		if(body[1] && body[1].data && body[1].data.children){//if the comments, etc. are defined
+
+			bigCommentArrayThing = body[1].data.children;//comments - body[0] is post
+			for(var i = 0; i < bigCommentArrayThing.length; i++)
+				try{
+					var decrypted = JSON.parse(utils.decrypt(bigCommentArrayThing[i].data.body));//set decrypted to a parsed json from the encrypted string
+					JSON.parse(JSON.stringify(decrypted));//it'll throw an error if it's not a real JSON
+					decrypted._id = bigCommentArrayThing[i].data.id;
+					// var thing = JSON.parse(bigCommentArrayThing[i].data.body);//no idea why we haad to do this but it didn't work otherwise
+					// thing._id = bigCommentArrayThing[i].data.id;
+					if(!utils.compare(decrypted, query)){//if the thing popped off doesn't match the query...
+						continue;//keep going & don't add to array
+					}
+					// var arrAdd = bigCommentArrayThing[i].data.body;
+					// arrAdd["id"] = bigCommentArrayThing[i].data.id;//mongo-esque id maps
+					// console.log(arrAdd);
+					// console.log(bigCommentArrayThing[i].data.id);
+					ret.push(decrypted);
+				} catch (e){}
+		}
+
+
+		callback(ret);
 	});
 
 }
@@ -167,8 +168,8 @@ function find(query, callback, parentId){//find all stuff - callback takes one a
 
 function update (query, newval, callback, parentId) {//query = thing to find by, newval = what to set to - because we're lazy, we'll make it require an _id for now
 
-	parentId = parentId || config.postId;
-	callback = callback || function(){
+	parentId = typeof parentId !== 'undefined' ? parentId : config.postId;
+	callback = typeof callback !== 'undefined' ? callback : function(){
 		console.log("Updated successfuly!")
 	};
 
@@ -197,7 +198,7 @@ function update (query, newval, callback, parentId) {//query = thing to find by,
 	// else if(!query._id){//no _id is defined - we're going to require the _id for now to make life easier and do less requests
 	// 	return console.log("Please specify the _id to update!");
 	// }
-	else if(!newval){
+	if(!newval){
 		return console.log("You need something to update to!");
 	}
 
@@ -230,10 +231,8 @@ function update (query, newval, callback, parentId) {//query = thing to find by,
 
 function updateById (id, newval, callback, parentId) {//query = thing to find by, newval = what to set to - because we're lazy, we'll make it require an _id for now
 
-	parentId = parentId || config.postId;
-	callback = callback || function(){
-
-	};
+	parentId = typeof parentId !== 'undefined' ? parentId : config.postId;
+	callback = typeof callback !== 'undefined' ? callback : function(){};
 
 
 	if(!loggedIn){//log in and try again
@@ -251,7 +250,8 @@ function updateById (id, newval, callback, parentId) {//query = thing to find by
 	if(!id){//no _id is defined - we're going to require the _id for now to make life easier and do less requests
 		return console.log("Please specify the _id to update!");
 	}
-	else if(!newval){
+
+    if (!newval) {
 		return console.log("You need something to update to!");
 	}
 
@@ -274,14 +274,14 @@ function updateById (id, newval, callback, parentId) {//query = thing to find by
 			console.log('Error while updating comment above.');
 			callback(false);
 			return;
-		} else {
-			callback(true);
-		}
+        }
+
+        callback(true);
 	});
 }
 
 function remove(query, callback){//only id based removing for now, so you'd need to pass something like {_id:123}
-	callback = callback || function(){};
+	callback = typeof callback !== 'undefined' ? callback : function(){};
 
 	if(!loggedIn){//log in and try again
 		return login(function(){
@@ -316,7 +316,7 @@ function remove(query, callback){//only id based removing for now, so you'd need
 }
 
 function removeById(id, callback){//only id based removing for now, so you'd need to pass something like {_id:123}
-	callback = callback || function(){};
+	callback = typeof callback !== 'undefined' ? callback : function(){};
 
 	if(!loggedIn){//log in and try again
 		return login(function(){
@@ -344,9 +344,9 @@ function removeById(id, callback){//only id based removing for now, so you'd nee
 			console.log('Error while removing comment above.');
 			callback(false);
 			return;
-		} else {
-			callback(true);
 		}
+
+        callback(true);
 	});
 }
 
@@ -374,21 +374,20 @@ function showdbs(){
 			console.log(err.stack);
 			console.log("Couldn't find dbs you are a contributor to");
 			return;
-		}else{
-			body = JSON.parse(body); // the json isn't manuverable without this :(
-			dbs=[]; // sets to empty string
-			for(var i=0; i<body.data.children.length;i++){
-				dbs.push(body.data.children[i].data.display_name) // recreates array
-			}
-			console.log("Databases:",dbs);
-			return;
+        }
+
+		body = JSON.parse(body); // the json isn't manuverable without this :(
+		dbs=[]; // sets to empty string
+		for(var i=0; i<body.data.children.length;i++){
+			dbs.push(body.data.children[i].data.display_name) // recreates array
 		}
+		console.log("Databases:",dbs);
+		return;
 	})
 
 }
 
 function changeDb(db){
-
 	config.subredditName = db.trim();
 	console.log("Changed to",config.subredditName);
 	return;
@@ -420,17 +419,17 @@ function showCollections(){
 			console.log(err.stack);
 			console.log("Couldn't find any collections in /r/" + config.subredditName);
 			return;
-		}else{
-			body = JSON.parse(body);
-			collections="\n----\n";
-			for(var i=0; i<body.data.children.length;i++){
-				collections+=body.data.children[i].data.id + " (" + body.data.children[i].data.title + ")\n";
-				// console.log()
-			}
-			collections+="----"
-			console.log("Collections:",collections);
-			return;
+        }
+
+		body = JSON.parse(body);
+		collections="\n----\n";
+		for(var i=0; i<body.data.children.length;i++){
+			collections+=body.data.children[i].data.id + " (" + body.data.children[i].data.title + ")\n";
+			// console.log()
 		}
+		collections+="----"
+		console.log("Collections:",collections);
+		return;
 	})
 }
 //2izkvt
